@@ -541,19 +541,28 @@ class Server:
 
     goal_load = to_sync(goal_load_async)
 
-    async def tactic_invocations_async(self, file_name: Union[str, Path]) -> list[CompilationUnit]:
+    async def tactic_invocations_async(
+            self,
+            file_name: Union[str, Path],
+            tree_info: bool = False) -> list[CompilationUnit]:
         """
         Collect tactic invocation points in file, and return them.
+
+        If `tree_info` is set, each invocation also carries the ids of its goals
+        before and after the tactic and the index of its enclosing invocation.
         """
         with tempfile.TemporaryDirectory() as tempdirname:
             invocation_file_name = f"{tempdirname}/invocations.json"
-            result = await self.run_async('frontend.process', {
+            payload = {
                 'fileName': str(file_name),
                 'invocations': invocation_file_name,
                 "readHeader": True,
                 "inheritEnv": False,
                 "newConstants": False,
-            })
+            }
+            if tree_info:
+                payload["invocationTreeInfo"] = True
+            result = await self.run_async('frontend.process', payload)
             if "error" in result:
                 raise ServerError(result)
 

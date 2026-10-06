@@ -283,6 +283,39 @@ class TestServer(unittest.TestCase):
         unit, = server.check_compile("import Lean\nexample (p: Prop) : p -> p := id", read_header=True)
         self.assertEqual(unit.messages, [])
 
+    def test_tactic_invocations_tree_info(self):
+        import tempfile
+        code = (
+            "example (p : Prop) (hp : p) : p ∧ p := by\n"
+            "  constructor\n"
+            "  exact hp\n"
+            "  exact hp\n"
+        )
+        server = Server()
+        with tempfile.TemporaryDirectory() as tempdirname:
+            file_name = f"{tempdirname}/Example.lean"
+            with open(file_name, "w") as f:
+                f.write(code)
+
+            # Without the flag, the new fields stay empty
+            unit, = server.tactic_invocations(file_name)
+            for i in unit.invocations:
+                self.assertIsNone(i.goal_ids_before)
+                self.assertIsNone(i.goal_ids_after)
+                self.assertIsNone(i.parent)
+
+            unit, = server.tactic_invocations(file_name, tree_info=True)
+        i0, i1, i2 = unit.invocations
+        self.assertEqual([i.tactic for i in unit.invocations], ["constructor", "exact hp", "exact hp"])
+        # Goal names are not predictable, so only check how they are linked
+        self.assertEqual(len(i0.goal_ids_before), 1)
+        self.assertEqual(len(i0.goal_ids_after), 2)
+        self.assertEqual(i1.goal_ids_before, i0.goal_ids_after)
+        self.assertEqual(i2.goal_ids_before, i1.goal_ids_after)
+        self.assertEqual(i2.goal_ids_before, i0.goal_ids_after[1:])
+        self.assertEqual(i2.goal_ids_after, [])
+        self.assertEqual([i.parent for i in unit.invocations], [None, None, None])
+
     def test_load_definitions(self):
         server = Server()
         server.load_definitions(

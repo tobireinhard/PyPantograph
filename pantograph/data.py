@@ -16,6 +16,13 @@ class TacticInvocation:
     tactic: str
     used_constants: list[str]
 
+    # Only present if requested with `tree_info=True`:
+    # Names of the unassigned goals before and after the tactic
+    goal_ids_before: Optional[list[str]] = None
+    goal_ids_after: Optional[list[str]] = None
+    # Index of the closest enclosing invocation in the same compilation unit
+    parent: Optional[int] = None
+
     @staticmethod
     def parse(payload: dict):
         return TacticInvocation(
@@ -23,6 +30,9 @@ class TacticInvocation:
             after=payload["goalAfter"],
             tactic=payload["tactic"],
             used_constants=payload.get('usedConstants', []),
+            goal_ids_before=payload.get("goalIdsBefore"),
+            goal_ids_after=payload.get("goalIdsAfter"),
+            parent=payload.get("parent"),
         )
 
 @dataclass(frozen=True)
