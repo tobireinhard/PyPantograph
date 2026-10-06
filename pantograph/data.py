@@ -22,6 +22,9 @@ class TacticInvocation:
     goal_ids_after: Optional[list[str]] = None
     # Index of the closest enclosing invocation in the same compilation unit
     parent: Optional[int] = None
+    # Whether a nested `by` block lies between this invocation and its parent,
+    # e.g. for the tactics in `have … := by …`. Only present if there is a parent.
+    parent_via_by: Optional[bool] = None
 
     @staticmethod
     def parse(payload: dict):
@@ -33,6 +36,7 @@ class TacticInvocation:
             goal_ids_before=payload.get("goalIdsBefore"),
             goal_ids_after=payload.get("goalIdsAfter"),
             parent=payload.get("parent"),
+            parent_via_by=payload.get("parentViaBy"),
         )
 
 @dataclass(frozen=True)

@@ -286,10 +286,14 @@ class TestServer(unittest.TestCase):
     def test_tactic_invocations_tree_info(self):
         import tempfile
         code = (
-            "example (p : Prop) (hp : p) : p ∧ p := by\n"
+            "theorem and_self_proof (p : Prop) (hp : p) : p ∧ p := by\n"
             "  constructor\n"
             "  exact hp\n"
             "  exact hp\n"
+            "\n"
+            "theorem have_by_proof (p : Prop) (hp : p) : p := by\n"
+            "  have h : p := by exact hp\n"
+            "  exact h\n"
         )
         server = Server()
         with tempfile.TemporaryDirectory() as tempdirname:
@@ -297,14 +301,20 @@ class TestServer(unittest.TestCase):
             with open(file_name, "w") as f:
                 f.write(code)
 
-            # Without the flag, the new fields stay empty
-            unit, = server.tactic_invocations(file_name)
-            for i in unit.invocations:
-                self.assertIsNone(i.goal_ids_before)
-                self.assertIsNone(i.goal_ids_after)
-                self.assertIsNone(i.parent)
+            # Without the flags, the new fields stay empty
+            for unit in server.tactic_invocations(file_name):
+                self.assertIsNone(unit.new_constants)
+                for i in unit.invocations:
+                    self.assertIsNone(i.goal_ids_before)
+                    self.assertIsNone(i.goal_ids_after)
+                    self.assertIsNone(i.parent)
+                    self.assertIsNone(i.parent_via_by)
 
-            unit, = server.tactic_invocations(file_name, tree_info=True)
+            unit, unit_have = server.tactic_invocations(
+                file_name, tree_info=True, new_constants=True)
+        self.assertEqual(unit.new_constants, ["and_self_proof"])
+        self.assertEqual(unit_have.new_constants, ["have_by_proof"])
+
         i0, i1, i2 = unit.invocations
         self.assertEqual([i.tactic for i in unit.invocations], ["constructor", "exact hp", "exact hp"])
         # Goal names are not predictable, so only check how they are linked
@@ -315,6 +325,17 @@ class TestServer(unittest.TestCase):
         self.assertEqual(i2.goal_ids_before, i0.goal_ids_after[1:])
         self.assertEqual(i2.goal_ids_after, [])
         self.assertEqual([i.parent for i in unit.invocations], [None, None, None])
+        self.assertEqual([i.parent_via_by for i in unit.invocations], [None, None, None])
+
+        # The tactic in the `by` block of `have` is nested in the `have`
+        self.assertEqual(
+            [(i.tactic, i.parent, i.parent_via_by) for i in unit_have.invocations],
+            [
+                ("have h : p := by exact hp", None, None),
+                ("exact hp", 0, True),
+                ("exact h", None, None),
+            ],
+        )
 
     def test_load_definitions(self):
         server = Server()

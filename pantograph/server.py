@@ -544,12 +544,16 @@ class Server:
     async def tactic_invocations_async(
             self,
             file_name: Union[str, Path],
-            tree_info: bool = False) -> list[CompilationUnit]:
+            tree_info: bool = False,
+            new_constants: bool = False) -> list[CompilationUnit]:
         """
         Collect tactic invocation points in file, and return them.
 
         If `tree_info` is set, each invocation also carries the ids of its goals
-        before and after the tactic and the index of its enclosing invocation.
+        before and after the tactic, the index of its enclosing invocation, and
+        whether a nested `by` block lies in between.
+
+        If `new_constants` is set, each unit lists the constants it defines.
         """
         with tempfile.TemporaryDirectory() as tempdirname:
             invocation_file_name = f"{tempdirname}/invocations.json"
@@ -558,7 +562,7 @@ class Server:
                 'invocations': invocation_file_name,
                 "readHeader": True,
                 "inheritEnv": False,
-                "newConstants": False,
+                "newConstants": new_constants,
             }
             if tree_info:
                 payload["invocationTreeInfo"] = True
