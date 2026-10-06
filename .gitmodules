@@ -1,4 +1,4 @@
 [submodule "src"]
 	path = src
-	url = https://github.com/leanprover/Pantograph.git
-	branch = dev
+	url = https://github.com/tobireinhard/Pantograph.git
+	branch = proof-tree-export
